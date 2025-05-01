@@ -18,6 +18,7 @@ def ode_system_3(t, y, A=7.89e-10, B=1.1e7, C=1.13e3, M=1e6):
 # Параметры системы
 y0 = np.array([1.76e-3, 0.0, 0.0, 0.0])
 t_span = (0.0, 1013.0)
+y_lims = (0.0, 10e-10)
 
 if __name__ == "__main__":
     start_time = time.time()
@@ -34,7 +35,7 @@ if __name__ == "__main__":
     plt.ylabel('Решение $y(t)$')
     plt.title('Неявный метод Рунге–Кутта 4-го порядка (3-ья система)')
     plt.xlim(t[0], t[-1])
-    plt.ylim(0.0, 10e-10)
+    plt.ylim(*y_lims)
     plt.legend()
     plt.grid()
     print(f"--- {time.time() - start_time:.2f} seconds ---")
