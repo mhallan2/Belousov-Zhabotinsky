@@ -1,7 +1,4 @@
 import numpy as np
-import time
-import matplotlib.pyplot as plt
-from implicit_rk4 import implicit_rk4
 
 
 # Система ОДУ
@@ -13,43 +10,29 @@ def ode_system_1(t, y):
     return np.array([dy1dt, dy2dt, dy3dt])
 
 
-y0 = np.array([1.0, 2.0, 3.0])
-t_span = (0.0, 800.0)
+def jacobian_1(t, y):
+    y1, y2, y3 = y
 
-if __name__ == "__main__":
-    start_time = time.time()
+    df1_dy1 = 77.27 * (1 - 1.675e-5 * y1 - y2)
+    df1_dy2 = 77.27 * (1 - y1)
+    df1_dy3 = 0.0
 
-    h = 0.025  # 0.025 работает быстро
-    t, Y = implicit_rk4(ode_system_1, t_span, y0, h)
+    df2_dy1 = -y2 / 77.27
+    df2_dy2 = -(1 + y1) / 77.27
+    df2_dy3 = 1 / 77.27
 
-    plt.figure(figsize=(15, 10))
+    df3_dy1 = 0.16
+    df3_dy2 = 0.0
+    df3_dy3 = -0.16
 
-    plt.subplot(3, 1, 1)
-    plt.plot(t, Y[:, 0], 'r', label=r'$y_1(t)$')
-    plt.xlabel('t')
-    plt.ylabel('y(t)')
-    plt.ylim(0.0, 125e3)
-    plt.title('(1) Численное решение для y1(t)')
-    plt.legend()
-    plt.grid()
+    J = np.array([
+        [df1_dy1, df1_dy2, df1_dy3],
+        [df2_dy1, df2_dy2, df2_dy3],
+        [df3_dy1, df3_dy2, df3_dy3]
+    ])
 
-    plt.subplot(3, 1, 2)
-    plt.plot(t, Y[:, 1], 'g', label=r'$y_2(t)$')
-    plt.xlabel('t')
-    plt.ylabel('y(t)')
-    plt.ylim(0.0, 2e3)
-    plt.title('(1) Численное решение для y2(t)')
-    plt.legend()
-    plt.grid()
+    return J
 
-    plt.subplot(3, 1, 3)
-    plt.plot(t, Y[:, 2], 'b', label=r'$y_3(t)$')
-    plt.xlabel('t')
-    plt.ylabel('y(t)')
-    plt.ylim(0.0, 35e3)
-    plt.title('(1) Численное решение для y3(t)')
-    plt.legend()
-    plt.grid()
-    plt.tight_layout()
-    print(f"--- {time.time() - start_time:.2f} seconds ---")
-    plt.show()
+
+y0_1 = np.array([1.0, 2.0, 3.0])
+t_span_1 = (0.0, 800.0)

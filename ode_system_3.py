@@ -1,7 +1,4 @@
 import numpy as np
-import time
-import matplotlib.pyplot as plt
-from implicit_rk4 import implicit_rk4
 
 
 def ode_system_3(t, y, A=7.89e-10, B=1.1e7, C=1.13e3, M=1e6):
@@ -15,41 +12,43 @@ def ode_system_3(t, y, A=7.89e-10, B=1.1e7, C=1.13e3, M=1e6):
     return np.array([dy1dt, dy2dt, dy3dt, dy4dt])
 
 
-# Параметры системы
-y0 = np.array([1.76e-3, 0.0, 0.0, 0.0])
-t_span = (0.0, 1013.0)
-y_lims_234 = (0.0, 2e-10) # для y2, y3, y4
-y_lims_1 = (15e-4, 20e-4)  # для y1
+def jacobian_3(t, y, A=7.89e-10, B=1.1e7, C=1.13e3, M=1e6):
+    y1, y2, y3, y4 = y
 
-if __name__ == "__main__":
-    start_time = time.time()
+    # Производные для dy1dt
+    df1_dy1 = -A - B * y3
+    df1_dy2 = 0.0
+    df1_dy3 = -B * y1
+    df1_dy4 = 0.0
 
-    h = 0.025  # 0.025 работает быстро
-    t, Y = implicit_rk4(ode_system_3, t_span, y0, h)
+    # Производные для dy2dt
+    df2_dy1 = A
+    df2_dy2 = -M * C * y3
+    df2_dy3 = -M * C * y2
+    df2_dy4 = 0.0
 
-    plt.figure(figsize=(14, 10))
+    # Производные для dy3dt
+    df3_dy1 = A - B * y3
+    df3_dy2 = -M * C * y3
+    df3_dy3 = -B * y1 - M * C * y2
+    df3_dy4 = C
 
-    plt.subplot(2, 1, 1)
+    # Производные для dy4dt
+    df4_dy1 = B * y3
+    df4_dy2 = 0.0
+    df4_dy3 = B * y1
+    df4_dy4 = -C
 
-    plt.plot(t, Y[:, 0], 'r', label=r'$y_1(t)$')
-    plt.xlabel('t')
-    plt.ylabel('y(t)')
-    plt.title('(3) Численное решение для y1(t)')
-    plt.ylim(y_lims_1)
-    plt.legend()
-    plt.grid()
+    J = np.array(
+        [
+            [df1_dy1, df1_dy2, df1_dy3, df1_dy4],
+            [df2_dy1, df2_dy2, df2_dy3, df2_dy4],
+            [df3_dy1, df3_dy2, df3_dy3, df3_dy4],
+            [df4_dy1, df4_dy2, df4_dy3, df4_dy4],
+        ]
+    )
+    return J
 
-    plt.subplot(2, 1, 2)
 
-    plt.plot(t, Y[:, 1], 'g', label=r'$y_2(t)$')
-    plt.plot(t, Y[:, 2], 'b', label=r'$y_3(t)$')
-    plt.plot(t, Y[:, 3], 'k', label=r'$y_4(t)$')
-    plt.xlabel('t')
-    plt.ylabel('y(t)')
-    plt.title('(3) Численное решение для y2(t), y3(t), y4(t)')
-    plt.ylim(y_lims_234)
-    plt.legend()
-    plt.grid()
-    plt.tight_layout()
-    print(f"--- {time.time() - start_time:.2f} seconds ---")
-    plt.show()
+y0_3 = np.array([1.76e-3, 0.0, 0.0, 0.0])
+t_span_3 = (0.0, 100.0)
