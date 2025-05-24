@@ -1,34 +1,37 @@
-import time
 import matplotlib.pyplot as plt
-from implicit_rk4 import implicit_rk4
-from systems import ode_system_1, ode_system_2, ode_system_3, systems
+from solve_irk4 import solve_irk4
+from ode_system_1 import ode_system_1, jacobian_1, y0_1, t_span_1
+from ode_system_2 import ode_system_2, jacobian_2, y0_2, t_span_2
+from ode_system_3 import ode_system_3, jacobian_3, y0_3, t_span_3
+from scipy.integrate import solve_ivp
+import time
 
+start = time.time()
+t, Y = solve_irk4(ode_system_1, t_span_1, y0_1, jacobian_1, atol=1e-13, rtol=1e-10)
+#sol = solve_ivp(ode_system_3, t_span_3, y0_3, method="Radau", jac=jacobian_3, atol=1e-13, rtol=1e-10)
+#t, Y = sol.t, sol.y.T
+plt.figure(figsize=(12, 8))
 
-def plot_system(system_func, params, h=0.025):
-    """Универсальная функция для построения графиков"""
-    start_time = time.time()
+plt.plot(Y[:, 1], Y[:, 0], label="y1(y2)")
+plt.plot(Y[:, 2], Y[:, 0], label="y1(y3)")
+plt.plot(Y[:, 2], Y[:, 1], label="y2(y3)")
+# Добавь ещё нужные тебе пары по аналогии
 
-    # Решаем систему
-    t, Y = implicit_rk4(system_func, params['t_span'], params['y0'], h)
+plt.xlabel("x (зависимая переменная)")
+plt.ylabel("y (независимая переменная)")
+plt.legend()
+plt.grid()
+plt.ylim(0.0, 0.2*1e-9)
+plt.tight_layout()
+plt.show()
 
-    # Создаем графики
-    plt.figure(figsize=(15, 11))
-
-    for i in range(Y.shape[1]):
-        plt.subplot(Y.shape[1], 1, i + 1)
-        plt.plot(t, Y[:, i], params['colors'][i], label=f'$y_{i + 1}(t)$')
-        plt.xlabel('t')
-        plt.ylabel('y(t)')
-        plt.ylim(params['ylims'][i])
-        plt.title(f'Численное решение для $y_{i + 1}(t)$')
-        plt.legend()
-        plt.grid()
-
-    plt.tight_layout()
-    print(f"--- {time.time() - start_time:.2f} seconds ---")
-    plt.show()
-
-
-if __name__ == "__main__":
-    systems_funcs = [ode_system_1, ode_system_2, ode_system_3]
-    [plot_system(f, systems[f'system{i+1}']) for i, f in enumerate(systems_funcs)]
+#plt.figure(figsize=(12,8))
+#for i in range(Y.shape[1]):
+#    plt.plot(Y[:, (i + 1) % Y.shape[1]], Y[:, i], label=str(i+1))
+#    plt.tight_layout()
+#    #plt.ylim(0.00150, 0.00185)
+#    plt.legend()
+#    plt.ylim(0.0, 4*1e-10)
+#    plt.grid()
+plt.show()
+print(time.time() - start)

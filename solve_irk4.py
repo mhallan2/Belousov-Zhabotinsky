@@ -22,13 +22,13 @@ def solve_irk4(
     t_span: Tuple[float, float],
     y0: np.ndarray,
     jac: Optional[Callable[[float, np.ndarray], np.ndarray]] = None,
-    atol: float = 1e-8,
-    rtol: float = 1e-10,
+    atol: float = 1e-13,
+    rtol: float = 1e-11,
     h0: Optional[float] = None,
     h_min: float = 1e-12,
-    h_max: float = 1e-2,
+    h_max: float = 1e-8,
     newton_tol: float = 1e-10,
-    newton_maxiter: int = 100,
+    newton_maxiter: int = 50,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """
     Integrate y' = f(t, y) from t_span[0] to t_span[1] with implicit RK4.
@@ -48,7 +48,7 @@ def solve_irk4(
         h_max = abs(tf - t0)
 
     # Jacobian via finite differences
-    def jac_fd(ti, yi, fi=None, eps=1e-8):
+    def jac_fd(ti, yi, fi=None, eps=1e-10):
         fi = f(ti, yi) if fi is None else fi
         J = np.empty((n, n), float)
         for j in range(n):
@@ -104,7 +104,7 @@ def solve_irk4(
 
     t_vals: List[float] = [t0]
     y_vals: List[np.ndarray] = [y0]
-    safety, fac_min, fac_max, p = 0.9, 0.2, 5.0, 4.0
+    safety, fac_min, fac_max, p = 0.8, 0.5, 2.0, 4.0
 
     while t_vals[-1] < tf:
         ti, yi = t_vals[-1], y_vals[-1]
@@ -116,7 +116,7 @@ def solve_irk4(
         except RuntimeError:
             h *= 0.5
             if h < h_min:
-                raise
+                raise RuntimeError("Couldn't calculate K (step is too small)")
             continue
         y_full = yi + h * (b[0] * K[0] + b[1] * K[1])
 
@@ -144,10 +144,10 @@ def solve_irk4(
             t_vals.append(ti + h)
             y_vals.append(y_two)
             # update step
-            h *= min(fac_max, max(fac_min, safety * rho ** (-1.0 / (p + 1))))
+            h *= min(fac_max, max(fac_min, safety * rho ** (-1.0 / (p + 1.0))))
         else:
             # reject
-            h *= max(fac_min, safety * rho ** (-1.0 / (p + 1)))
+            h *= max(fac_min, safety * rho ** (-1.0 / (p + 1.0)))
             if h < h_min:
                 raise RuntimeError("Step size too small")
 
@@ -167,7 +167,7 @@ def ode_system_test(t, y):
     dy3dt = y2 - 2 * y3
     return np.array([dy1dt, dy2dt, dy3dt])
 
-t_span_test = (0.0, 50.0)
+t_span_test = (0.0, 1000.0)
 y0_test = np.array([1.0, 0.0, 0.0])
 
 # Аналитическое решение (возвращает массив формы (n_points, 3))
@@ -176,10 +176,6 @@ def exact_solution(t):
     y2 = np.exp(-t) * t
     y3 = np.exp(-2 * t) * (np.exp(t) * (t - 1) + 1)
     return np.column_stack([y1, y2, y3])
-
-
-def convergence_study_num(t_span, y0):
-    pass
 
 
 def plot(ode, t_span, y0, jac, h=1e-2):
@@ -197,5 +193,4 @@ def plot(ode, t_span, y0, jac, h=1e-2):
 if __name__ == "__main__":
     # Параметры решения
     h = 1e-2
-    # convergence_study(t_span, y0)
     plot(ode_system_test, t_span_test, y0_test, jacobian_1, h)

@@ -1,7 +1,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import time
 from scipy.integrate import solve_ivp
-from scipy.interpolate import interp1d
+from scipy.interpolate import make_interp_spline, interp1d
 from solve_irk4 import solve_irk4, ode_system_test, jacobian_test, t_span_test, y0_test
 from ode_system_1 import ode_system_1, jacobian_1, y0_1, t_span_1
 from ode_system_2 import ode_system_2, jacobian_2, y0_2, t_span_2
@@ -13,23 +14,29 @@ plt.style.use("seaborn-v0_8")
 plt.rcParams["font.family"] = "DejaVu Sans"
 
 problems = [
-    (ode_system_1, t_span_1, jacobian_1, y0_1, "System 1"),
+    #(ode_system_1, t_span_1, jacobian_1, y0_1, "System 1"),
     #(ode_system_2, t_span_2, jacobian_2, y0_2, "System 2"),
-    #(ode_system_3, t_span_3, jacobian_3, y0_3, "System 3"),
+    (ode_system_3, t_span_3, jacobian_3, y0_3, "System 3"),
     #(ode_system_test, t_span_test, jacobian_test, y0_test, "System test"),
 ]
 
-tols = np.geomspace(1e-10, 1e-2, num=200)
+tols = np.geomspace(1e-13, 1e-14, num=20)
 for ode, t_span, jac, y0, label in problems:
+    start = time.time()
+
     t0, tf = t_span
     dim = y0.size
 
     # эталон
     sol_ref = solve_ivp(
-        ode, t_span, y0, method="Radau", atol=1e-10, rtol=1e-12, jac=jac
+        ode, t_span, y0, method="Radau", atol=1e-14, rtol=1e-10, jac=jac
     )
     t_ref = sol_ref.t
     y_ref = sol_ref.y.T
+
+    #t_ref, y_ref = solve_irk4(
+    #    f=ode, t_span=(t0, tf), y0=y0, jac=jac, atol=1e-12, rtol=1e-14
+    #)
 
     # подготовка массивов
     comp_errors = np.zeros((len(tols), dim))
@@ -37,11 +44,17 @@ for ode, t_span, jac, y0, label in problems:
 
     all_t_num = []
     for k, atol in enumerate(tols):
-        rtol = 1e-2 * atol  # или atol
+        rtol = 1e+2 * atol  # или atol
         try:
+            #sol_num = solve_ivp(
+            #    f=ode, t_span=(t0, tf), y0=y0, method="RK45", atol=atol, rtol=rtol
+            #)
+            #t_num, y_num = sol_num.t, sol_num.y.T
+
             t_num, y_num = solve_irk4(
                 f=ode, t_span=(t0, tf), y0=y0, jac=jac, atol=atol, rtol=rtol
             )
+
             all_t_num.append(t_num)
             # кубическая интерполяция на t_ref
             interp = interp1d(
@@ -49,62 +62,61 @@ for ode, t_span, jac, y0, label in problems:
             )
             y_i = interp(t_ref).T  # (Nt_ref, dim)
 
+            # y_num.shape = (N, dim), нужно интерполировать по каждой компоненте отдельно
+            #y_i = np.zeros((len(t_ref), y_num.shape[1]))  # (Nt_ref, dim)
+
+            #for j in range(y_num.shape[1]):  # по каждой компоненте
+            #    spline = make_interp_spline(t_num, y_num[:, j], k=3)
+            #    y_i[:, j] = spline(t_ref)
+
             # по компонентам
             comp_errors[k, :] = np.max(np.abs(y_i - y_ref), axis=0)
             # и максимальная (возможно, не стоит смотреть на эту характеристику)
-            max_errors[k] = comp_errors[k, :].max()
+            #max_errors[k] = comp_errors[k, :].max()
             print(comp_errors[k, :])
         except Exception as e:
             #print(f"[{label}] Ошибка при atol={atol:.1e}: {e}")
-            print(comp_errors[k, :])
+            #print(comp_errors[k, :])
             comp_errors[k, :] = np.nan
             max_errors[k] = np.nan
 
     # убираем nan
     valid = ~np.isnan(max_errors)
     atols_used = tols[valid]
-    max_err = max_errors[valid]
     comp_err = comp_errors[valid, :]
 
-    # регрессия на max_errors
     log_a = np.log10(atols_used)
-    log_e = np.log10(max_err)
-    (slope, intercept), V = np.polyfit(log_a, log_e, 1, cov=True)
-    rcoef = np.corrcoef(log_a, log_e)[0, 1]
     p = 4.0
-    C = max_err[0] / atols_used[0] ** (p / (p + 1))
+    p_log = 0.8
 
-    # --- Рисунок с тремя компонентами + max ---
+    # --- Рисунок с тремя/четырьмя компонентами ---
     fig, axes = plt.subplots(2, 2, figsize=(10, 8))
     axes = axes.ravel()
 
-    # Подготовили series и titles, как раньше:
-    series = [comp_err[:, i] for i in range(dim)] + [max_err]
-    titles = [f"Компонента {i + 1}" for i in range(dim)] + [
-        "Max по компонентам"
-    ]
+    series = [comp_err[:, i] for i in range(dim)]
+    titles = [f"Компонента {i + 1}" for i in range(dim)]
 
     component_slopes = []
     for ax, errs, title in zip(axes, series, titles):
         # логарифмы для этой серии
         log_errs = np.log10(errs)
 
-        # своя регрессия
         slope_i, intercept_i = np.polyfit(log_a, log_errs, 1)
         component_slopes.append(slope_i)
-        # можно также получить cov-матрицу, R² и т.д.
-        rcoef = np.corrcoef(log_a, log_e)[0, 1]
-        # свои fit‐точки
-        fit_line = 10 ** (slope_i * log_a + intercept_i)
 
-        ax.loglog(atols_used, errs, "o", label="эксп.")
-        ax.loglog(atols_used, fit_line, "--", label=f"fit slope={slope_i:.2f}\n"
-                                                    f"R**2 = {rcoef ** 2:.2f}")
+        rcoef = np.corrcoef(log_a, log_errs)[0, 1]
+
+        fit_line = 10 ** (slope_i * log_a + intercept_i)
+        C = errs[0] / atols_used[0] ** p_log
+
+        ax.loglog(atols_used, errs, "o", label="Experimental")
+        ax.loglog(atols_used, fit_line, "--", label=f"Slope={slope_i:.4f}\n"
+                                                    f"R**2 = {rcoef ** 2:.4f}")
         ax.loglog(
             atols_used,
             C * atols_used ** (p / (p + 1)),
             ":",
-            label=f"theo p/(p+1)={p / (p + 1):.2f}",
+            label=f"Theoretical p/(p+1)=0.8",
         )
 
         ax.set_title(title)
@@ -116,8 +128,8 @@ for ode, t_span, jac, y0, label in problems:
     fig.suptitle(f"Сходимость IRK4 — {label}")
     plt.tight_layout()
     plt.show()
-    print(
-        f"[{label}] slope={slope:.3f} ±{np.sqrt(V[0, 0]):.3f}, R²={rcoef**2:.3f}"
-    )
+
+print(f"---- {(time.time() - start):.4f} ----")
+
 for i, s in enumerate(component_slopes):
     print(f"Компонента {i+1}: slope = {s:.4f}")

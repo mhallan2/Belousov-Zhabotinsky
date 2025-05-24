@@ -35,4 +35,4 @@ def jacobian_1(t, y):
 
 
 y0_1 = np.array([1.0, 2.0, 3.0])
-t_span_1 = (0.0, 800.0)
+t_span_1 = (0.0, 800)
